@@ -1,6 +1,8 @@
 public class Main {
     public static void main(String[] args) {
-        CapabilityList c = new CapabilityList();
-        c.matrixGeneration();
+        CapabilityList.matrixGeneration();
+        Thread thread = new Thread(new CapabilityList.capabilityThread(0));
+        thread.start();
+
     }
 }
