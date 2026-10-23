@@ -4,7 +4,7 @@ import java.util.concurrent.locks.ReentrantLock;
 
 // this class implements task three of the project
 // implements access control with capability lists
-// run in main with CapabilityList.run()
+// run in main with CapabilityList.run();
 public class CapabilityList {
     static ArrayList<accessObject>[] capabilityMatrix;
     static int N;
