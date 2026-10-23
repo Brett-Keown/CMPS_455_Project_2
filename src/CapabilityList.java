@@ -1,9 +1,15 @@
 import java.util.Random;
 import java.util.ArrayList;
+import java.util.concurrent.locks.ReentrantLock;
 public class CapabilityList {
     static ArrayList<accessObject>[] capabilityMatrix;
     static int N;
     static int M;
+
+    static ReentrantLock[] fileLocks;
+    static Random rand = new Random();
+
+
 
     public static class accessObject{
         int domain;
@@ -16,8 +22,6 @@ public class CapabilityList {
     //Matrix Creation
     public static void matrixGeneration(){
         //STep 1 get dimesnions of matrix
-
-        Random rand = new Random();
 
         N = rand.nextInt(5) + 3;
         System.out.println(N);
@@ -36,7 +40,9 @@ public class CapabilityList {
         for(int i = 0; i < N; i ++) { //Iterate through each Domain or Column
             for(int j = 0; j < M + N; j++){ //Iterate though all Files and all Domains
                 int accessControl = rand.nextInt(2);
-                if (accessControl == 0)
+                if(i == j - M)
+                    capabilityMatrix[i].add(new accessObject(i, "N/A"));
+                if(accessControl == 0)
                     capabilityMatrix[i].add(new accessObject(i, "Access"));
                 else
                     capabilityMatrix[i].add(new accessObject(i, "No Access"));
@@ -68,18 +74,19 @@ public class CapabilityList {
 
         @Override
         public void run() {
-            Random rand = new Random();
-            int object = rand.nextInt(M+N);  //Testing
-            System.out.println(object);
-            if (object < M)
-                System.out.println(arbitrator(domain, object)); //File switcg
-            if (object >= M) {
+            for(int i = 0; i < 5; i++) {
+                int object = rand.nextInt(M + N);  //Testing
+
+
                 while (object - M == domain) {
-                    System.out.println("OOPS");
                     object = rand.nextInt(M + N);
-                    System.out.println(object);
                 }
-                System.out.println(arbitrator(domain, object - M)); //Domain switch if object - M != domain
+
+                if (object < M)
+                    fileAccess(domain, object, threadId); //File switching
+                if (object >= M) {
+                    domain = domainAccess(domain, object, threadId); //Domain switch if object - M != domain
+                }
             }
         }
     }
@@ -94,7 +101,81 @@ public class CapabilityList {
             val = false;
         return val;
     }
-    public void fileAccess(int request){
+    public static void fileAccess(int domain, int object, int threadID){ //Domain to get the domain of the correct domain of the requested object, and threadID for printing info and lock logic
+        System.out.println("[Thread: " + threadID + "(D" + (domain + 1) + ")" + "] Attempting to access resource: F" + (object+1));
+
+        //Check if Access if allowed
+        boolean allowed = arbitrator(domain, object);
+        if (allowed){
+            System.out.println("[Thread: " + threadID + "(D" + (domain + 1) + ")" + "] Access Granted");
+
+            fileLocks[object].lock();
+            try{
+                int yields = rand.nextInt(5) + 3;
+
+                System.out.println("[Thread: " + threadID + "(D" + (domain + 1) + ")" + "] Yielding " + yields + " times");
+
+                for(int i = 0; i < yields; i++)
+                    Thread.yield();
+            }finally {
+                fileLocks[object].unlock();
+            }
+
+            System.out.println("[Thread: " + threadID + "(D" + (domain + 1) + ")" + "] Operation Complete");
+        }
+        else{
+            System.out.println("[Thread: " + threadID + "(D" + (domain + 1) + ")" + "] Operation failed, permission denied");
+
+            //Yield code
+            int yields = rand.nextInt(5) + 3;
+            System.out.println("[Thread: " + threadID + "(D" + (domain + 1) + ")" + "] Yielding " + yields + " times");
+
+            for(int i = 0; i < yields; i++)
+                Thread.yield();
+        }
+    }
+
+    public static int domainAccess(int domain, int object, int threadID){
+        System.out.println("[Thread: " + threadID + "(D" + (domain + 1) + ")" + "] Attempting to Switch from: D" + (domain+1) + " to D" + (object-M+ 1));
+
+        boolean allowed = arbitrator(domain, object);
+        if(allowed){
+            domain = object - M;
+            System.out.println("[Thread: " + threadID + "(D" + (domain + 1) + ")" + "] Switched to D" + (object - M + 1));
+
+            int yields = rand.nextInt(5) + 3;
+
+            System.out.println("[Thread: " + threadID + "(D" + (domain + 1) + ")" + "] Yielding " + yields + " times");
+
+            for(int i = 0; i < yields; i++)
+                Thread.yield();
+
+            System.out.println("[Thread: " + threadID + "(D" + (domain + 1) + ")" + "] Operation failed, permission denied");
+        }
+        else{
+            System.out.println("[Thread: " + threadID + "(D" + (domain + 1) + ")" + "] Switch failed, permission denied");
+        }
+        return domain;
+    }
+
+    public static void run(){
+        matrixGeneration();
+        System.out.println();
+
+        //Create a list thatll contain a specefic lock for the specefic file of domain
+        //Create locks for all M + N
+        fileLocks = new ReentrantLock[M];
+        for(int i = 0; i < fileLocks.length; i++)
+            fileLocks[i] = new ReentrantLock();
+
+        Thread[] threads = new Thread[N];
+        for(int i = 0; i < N; i++){
+            threads[i] = new Thread(new capabilityThread(i));
+        }
+        for(int i = 0; i < N; i++){
+            threads[i].start();
+        }
+
 
     }
 
