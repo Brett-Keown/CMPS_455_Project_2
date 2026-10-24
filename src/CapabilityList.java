@@ -169,10 +169,11 @@ public class CapabilityList {
         return domain;
     }
     public static void run(){
+        matrixGeneration();
+
         System.out.println("Domain Count: " + N);
         System.out.println("Object Count:" + M);
 
-        matrixGeneration();
         printAccessLists();
         System.out.println();
 
